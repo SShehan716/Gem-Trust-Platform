@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # Frontend Service (Development)
+  frontend-dev:
+    build:
+      context: ./gem-trust-platform-web
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./gem-trust-platform-web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend-dev
+    networks:
+      - gem-trust-network
+    command: npm run dev
+
+  # Backend Service (Development)
+  backend-dev:
+    build:
+      context: ./gem-trust-platform-api
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./gem-trust-platform-api:/app
+      - /app/node_modules
+    networks:
+      - gem-trust-network
+
+networks:
+  gem-trust-network:
+    driver: bridge

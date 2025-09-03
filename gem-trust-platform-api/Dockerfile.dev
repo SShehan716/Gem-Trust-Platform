@@ -1,0 +1,31 @@
+# Use Node.js 18 Alpine for development
+FROM node:18-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    gcc \
+    musl-dev \
+    python3-dev
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY hello-world/package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Override the entrypoint to avoid conflicts
+ENTRYPOINT []
+
+# Start the HTTP server for development
+CMD ["node", "hello-world/server.mjs"]

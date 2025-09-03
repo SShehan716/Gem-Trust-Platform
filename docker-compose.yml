@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  # Frontend Service
+  frontend:
+    build:
+      context: ./gem-trust-platform-web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    networks:
+      - gem-trust-network
+
+  # Backend Service
+  backend:
+    build:
+      context: ./gem-trust-platform-api
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - gem-trust-network
+
+networks:
+  gem-trust-network:
+    driver: bridge
+
+volumes:
+  # Persist node_modules for faster builds
+  frontend-node-modules:
+  backend-node-modules:

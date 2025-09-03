@@ -77,5 +77,44 @@ Both projects are configured with:
 ## Prerequisites
 
 - Node.js 18+ 
+- Docker Desktop (for containerized development)
 - AWS SAM CLI (for backend development)
 - AWS CLI (for backend deployment)
+
+## 🐳 Docker Development
+
+The easiest way to run the project is using Docker:
+
+### Quick Start
+```bash
+# Start development environment (recommended)
+./run-docker.sh dev
+
+# Start production environment
+./run-docker.sh prod
+
+# Stop all services
+./run-docker.sh stop
+
+# Clean everything
+./run-docker.sh clean
+```
+
+### Manual Docker Commands
+```bash
+# Development mode with hot reloading
+docker-compose -f docker-compose.dev.yml up --build
+
+# Production mode
+docker-compose up --build
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+### Docker Services
+- **Frontend**: http://localhost:3000 (Next.js with hot reloading)
+- **Backend**: http://localhost:3001 (AWS SAM API)
