@@ -1,0 +1,13 @@
+{
+  "RegisterUserFunction": {
+    "USER_POOL_ID": "<SET_FROM_LOCALSTACK_BOOTSTRAP>",
+    "USERS_TABLE": "gem-trust-platform-api-users",
+    "S3_BUCKET": "gem-trust-platform-api-documents-000000000000",
+    "BUYER_GROUP": "Buyers",
+    "SELLER_GROUP": "Sellers",
+    "AWS_ENDPOINT_URL": "http://localhost:4566",
+    "AWS_REGION": "us-east-1",
+    "LOCALSTACK_HOSTNAME": "localhost"
+  }
+}
+

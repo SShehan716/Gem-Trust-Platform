@@ -1,127 +1,423 @@
-# gem-trust-platform-api
+# Gem Trust Platform API - Authentication Setup Guide
 
-This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+This guide provides step-by-step instructions for setting up the AWS Cognito User Pool and IAM roles required for the Gem Trust Platform authentication system.
 
-- hello-world - Code for the application's Lambda function.
-- events - Invocation events that you can use to invoke the function.
-- hello-world/tests - Unit tests for the application code. 
-- template.yaml - A template that defines the application's AWS resources.
+## Table of Contents
 
-The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
+1. [Prerequisites](#prerequisites)
+2. [AWS Cognito User Pool Setup](#aws-cognito-user-pool-setup)
+3. [IAM Roles and Policies](#iam-roles-and-policies)
+4. [Environment Variables](#environment-variables)
+5. [Deployment](#deployment)
+6. [Testing](#testing)
+7. [Troubleshooting](#troubleshooting)
 
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.  
-The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
+## Prerequisites
 
-* [CLion](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [GoLand](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [IntelliJ](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [WebStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [Rider](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PhpStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PyCharm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [RubyMine](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [DataGrip](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [VS Code](https://docs.aws.amazon.com/toolkit-for-vscode/latest/userguide/welcome.html)
-* [Visual Studio](https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/welcome.html)
+Before setting up the authentication system, ensure you have:
 
-## Deploy the sample application
+- AWS CLI configured with appropriate permissions
+- AWS SAM CLI installed
+- Node.js 18+ installed
+- Docker installed (for local development)
+- An AWS account with sufficient permissions to create:
+  - Cognito User Pools
+  - DynamoDB tables
+  - S3 buckets
+  - Lambda functions
+  - IAM roles and policies
 
-The Serverless Application Model Command Line Interface (SAM CLI) is an extension of the AWS CLI that adds functionality for building and testing Lambda applications. It uses Docker to run your functions in an Amazon Linux environment that matches Lambda. It can also emulate your application's build environment and API.
+## AWS Cognito User Pool Setup
 
-To use the SAM CLI, you need the following tools.
+### 1. Deploy the SAM Template
 
-* SAM CLI - [Install the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-* Node.js - [Install Node.js 18](https://nodejs.org/en/), including the NPM package management tool.
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
-
-To build and deploy your application for the first time, run the following in your shell:
+The SAM template automatically creates the Cognito User Pool with the following configuration:
 
 ```bash
+cd gem-trust-platform-api
 sam build
 sam deploy --guided
 ```
 
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
+### 2. Manual Cognito Setup (Alternative)
 
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
+If you prefer to set up Cognito manually:
 
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
+#### Create User Pool
+```bash
+aws cognito-idp create-user-pool \
+  --pool-name "gem-trust-platform-user-pool" \
+  --username-attributes email \
+  --auto-verified-attributes email \
+  --policies '{
+    "PasswordPolicy": {
+      "MinimumLength": 8,
+      "RequireUppercase": true,
+      "RequireLowercase": true,
+      "RequireNumbers": true,
+      "RequireSymbols": true
+    }
+  }' \
+  --schema '[
+    {
+      "Name": "email",
+      "AttributeDataType": "String",
+      "Required": true,
+      "Mutable": true
+    },
+    {
+      "Name": "name",
+      "AttributeDataType": "String",
+      "Required": true,
+      "Mutable": true
+    },
+    {
+      "Name": "phone_number",
+      "AttributeDataType": "String",
+      "Required": true,
+      "Mutable": true
+    },
+    {
+      "Name": "nic_number",
+      "AttributeDataType": "String",
+      "Required": true,
+      "Mutable": false
+    },
+    {
+      "Name": "role",
+      "AttributeDataType": "String",
+      "Required": true,
+      "Mutable": false
+    }
+  ]'
+```
 
-## Use the SAM CLI to build and test locally
+#### Create User Pool Client
+```bash
+aws cognito-idp create-user-pool-client \
+  --user-pool-id <USER_POOL_ID> \
+  --client-name "gem-trust-platform-client" \
+  --no-generate-secret \
+  --explicit-auth-flows ALLOW_USER_SRP_AUTH ALLOW_REFRESH_TOKEN_AUTH ALLOW_USER_PASSWORD_AUTH
+```
 
-Build your application with the `sam build` command.
+#### Create User Groups
+```bash
+# Create Buyer group
+aws cognito-idp create-group \
+  --user-pool-id <USER_POOL_ID> \
+  --group-name "Buyers" \
+  --description "Users who buy gems"
+
+# Create Seller group
+aws cognito-idp create-group \
+  --user-pool-id <USER_POOL_ID> \
+  --group-name "Sellers" \
+  --description "Users who sell gems"
+```
+
+## IAM Roles and Policies
+
+### 1. Lambda Execution Role
+
+The SAM template automatically creates the necessary IAM roles. The Lambda function requires the following permissions:
+
+#### Cognito Permissions
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminSetUserPassword",
+        "cognito-idp:AdminAddUserToGroup",
+        "cognito-idp:AdminGetUser",
+        "cognito-idp:ListUsers"
+      ],
+      "Resource": "arn:aws:cognito-idp:REGION:ACCOUNT:userpool/USER_POOL_ID"
+    }
+  ]
+}
+```
+
+#### DynamoDB Permissions
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:PutItem",
+        "dynamodb:GetItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:REGION:ACCOUNT:table/USERS_TABLE",
+        "arn:aws:dynamodb:REGION:ACCOUNT:table/USERS_TABLE/index/*"
+      ]
+    }
+  ]
+}
+```
+
+#### S3 Permissions
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::DOCUMENTS_BUCKET/*"
+    }
+  ]
+}
+```
+
+### 2. Manual IAM Role Creation
+
+If creating IAM roles manually:
 
 ```bash
-gem-trust-platform-api$ sam build
+# Create Lambda execution role
+aws iam create-role \
+  --role-name "GemTrustPlatform-LambdaRole" \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": {
+          "Service": "lambda.amazonaws.com"
+        },
+        "Action": "sts:AssumeRole"
+      }
+    ]
+  }'
+
+# Attach policies
+aws iam attach-role-policy \
+  --role-name "GemTrustPlatform-LambdaRole" \
+  --policy-arn "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+# Create and attach custom policy
+aws iam create-policy \
+  --policy-name "GemTrustPlatform-CustomPolicy" \
+  --policy-document file://custom-policy.json
+
+aws iam attach-role-policy \
+  --role-name "GemTrustPlatform-LambdaRole" \
+  --policy-arn "arn:aws:iam::ACCOUNT:policy/GemTrustPlatform-CustomPolicy"
 ```
 
-The SAM CLI installs dependencies defined in `hello-world/package.json`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
+## Environment Variables
 
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
+### Frontend Environment Variables
 
-Run functions locally and invoke them with the `sam local invoke` command.
+Create a `.env.local` file in the frontend directory:
 
 ```bash
-gem-trust-platform-api$ sam local invoke HelloWorldFunction --event events/event.json
+# AWS Cognito Configuration
+NEXT_PUBLIC_COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
+NEXT_PUBLIC_COGNITO_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
+NEXT_PUBLIC_AWS_REGION=us-east-1
+
+# API Gateway Configuration
+NEXT_PUBLIC_API_GATEWAY_URL=https://api.gemtrust.com
+
+# Cognito Domain (optional, for hosted UI)
+NEXT_PUBLIC_COGNITO_DOMAIN=gemtrust.auth.us-east-1.amazoncognito.com
+
+# Redirect URLs
+NEXT_PUBLIC_REDIRECT_SIGN_IN=http://localhost:3000/auth/callback
+NEXT_PUBLIC_REDIRECT_SIGN_OUT=http://localhost:3000/auth
 ```
 
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
+### Backend Environment Variables
+
+The SAM template automatically sets these environment variables for Lambda functions:
+
+- `USER_POOL_ID`: Cognito User Pool ID
+- `USERS_TABLE`: DynamoDB Users table name
+- `S3_BUCKET`: S3 bucket for document storage
+- `BUYER_GROUP`: Cognito group name for buyers
+- `SELLER_GROUP`: Cognito group name for sellers
+
+## Deployment
+
+### 1. Build and Deploy with SAM
 
 ```bash
-gem-trust-platform-api$ sam local start-api
-gem-trust-platform-api$ curl http://localhost:3000/
+# Build the application
+sam build
+
+# Deploy with guided setup (first time)
+sam deploy --guided
+
+# Deploy updates
+sam deploy
 ```
 
-The SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
+### 2. Get Deployment Outputs
 
-```yaml
-      Events:
-        HelloWorld:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
-```
-
-## Add a resource to your application
-The application template uses AWS Serverless Application Model (AWS SAM) to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources such as functions, triggers, and APIs. For resources not included in [the SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use standard [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html) resource types.
-
-## Fetch, tail, and filter Lambda function logs
-
-To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs generated by your deployed Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
-
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
+After deployment, get the required values:
 
 ```bash
-gem-trust-platform-api$ sam logs -n HelloWorldFunction --stack-name gem-trust-platform-api --tail
+# Get stack outputs
+aws cloudformation describe-stacks \
+  --stack-name gem-trust-platform-api \
+  --query 'Stacks[0].Outputs'
 ```
 
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
+### 3. Update Frontend Configuration
 
-## Unit tests
-
-Tests are defined in the `hello-world/tests` folder in this project. Use NPM to install the [Mocha test framework](https://mochajs.org/) and run unit tests.
+Update your frontend environment variables with the deployment outputs:
 
 ```bash
-gem-trust-platform-api$ cd hello-world
-hello-world$ npm install
-hello-world$ npm run test
+# Get User Pool ID
+USER_POOL_ID=$(aws cloudformation describe-stacks \
+  --stack-name gem-trust-platform-api \
+  --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' \
+  --output text)
+
+# Get User Pool Client ID
+CLIENT_ID=$(aws cloudformation describe-stacks \
+  --stack-name gem-trust-platform-api \
+  --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' \
+  --output text)
+
+# Get API Gateway URL
+API_URL=$(aws cloudformation describe-stacks \
+  --stack-name gem-trust-platform-api \
+  --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayUrl`].OutputValue' \
+  --output text)
 ```
 
-## Cleanup
+## Testing
 
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
+### 1. Test User Registration
 
 ```bash
-sam delete --stack-name gem-trust-platform-api
+# Test the registration endpoint
+curl -X POST https://YOUR_API_GATEWAY_URL/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "TestPassword123!",
+    "fullName": "Test User",
+    "mobileNumber": "+1234567890",
+    "nicNumber": "123456789V",
+    "role": "Buyer"
+  }'
 ```
 
-## Resources
+### 2. Test Cognito User Creation
 
-See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
+```bash
+# List users in the User Pool
+aws cognito-idp list-users \
+  --user-pool-id YOUR_USER_POOL_ID
+```
 
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
+### 3. Test DynamoDB
+
+```bash
+# Scan the Users table
+aws dynamodb scan \
+  --table-name YOUR_USERS_TABLE
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. Cognito User Pool Not Found
+- Verify the User Pool ID is correct
+- Check that the User Pool exists in the correct region
+- Ensure the Lambda function has the correct permissions
+
+#### 2. DynamoDB Access Denied
+- Verify the Lambda execution role has DynamoDB permissions
+- Check that the table name matches the environment variable
+- Ensure the table exists in the correct region
+
+#### 3. S3 Upload Failed
+- Verify the S3 bucket exists and is accessible
+- Check that the Lambda execution role has S3 permissions
+- Ensure the bucket policy allows the Lambda function to upload
+
+#### 4. User Registration Fails
+- Check CloudWatch logs for detailed error messages
+- Verify all required fields are provided
+- Ensure the password meets the policy requirements
+
+### Debugging Steps
+
+1. **Check CloudWatch Logs**
+   ```bash
+   aws logs describe-log-groups --log-group-name-prefix /aws/lambda/gem-trust-platform
+   ```
+
+2. **Test Lambda Function Locally**
+   ```bash
+   sam local invoke RegisterUserFunction --event events/register-event.json
+   ```
+
+3. **Verify IAM Permissions**
+   ```bash
+   aws iam get-role --role-name YOUR_LAMBDA_ROLE_NAME
+   ```
+
+4. **Check API Gateway Logs**
+   - Enable CloudWatch logging for API Gateway
+   - Check the API Gateway console for request/response logs
+
+### Security Considerations
+
+1. **Environment Variables**
+   - Never commit sensitive environment variables to version control
+   - Use AWS Systems Manager Parameter Store for production secrets
+   - Rotate API keys and secrets regularly
+
+2. **IAM Permissions**
+   - Follow the principle of least privilege
+   - Regularly audit IAM roles and policies
+   - Use IAM conditions to restrict access
+
+3. **Cognito Security**
+   - Enable MFA for production environments
+   - Configure password policies according to your requirements
+   - Monitor failed authentication attempts
+
+4. **Data Protection**
+   - Encrypt sensitive data in DynamoDB
+   - Use S3 server-side encryption for document storage
+   - Implement proper access controls
+
+## Support
+
+For additional support:
+
+1. Check the AWS documentation for Cognito, DynamoDB, and Lambda
+2. Review CloudWatch logs for detailed error messages
+3. Test individual components in isolation
+4. Use AWS X-Ray for distributed tracing
+
+## Next Steps
+
+After successful setup:
+
+1. Configure the frontend to use the deployed API
+2. Implement additional authentication features (MFA, social login)
+3. Add user management and admin functions
+4. Implement proper error handling and logging
+5. Set up monitoring and alerting
